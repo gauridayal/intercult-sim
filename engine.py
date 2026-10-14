@@ -1,7 +1,9 @@
 """Terminal conversation loop that plays out any scenario dict against the LLM."""
 
 import textwrap
+from datetime import datetime, timezone
 
+from analysis import record_and_save
 from conversation import build_system_prompt, process_reply
 from llm import generate_reply
 
@@ -42,6 +44,7 @@ def run_scenario(client, model: str, scenario: dict) -> None:
     max_turns = scenario["max_turns"]
 
     history: list[dict] = []
+    started_at = datetime.now(timezone.utc).isoformat()
 
     opening = scenario["opening_line"]
     _print_wrapped(ai_name, opening)
@@ -52,12 +55,16 @@ def run_scenario(client, model: str, scenario: dict) -> None:
             user_input = input(f"{player_name} (you): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("\n\nEnding scenario early.\n")
+            if any(m["role"] == "user" for m in history):
+                record_and_save(client, model, scenario, history, "user_ended", started_at)
             return
 
         if not user_input:
             continue
         if user_input.lower() in ("quit", "exit"):
             print("\nEnding scenario early.\n")
+            if any(m["role"] == "user" for m in history):
+                record_and_save(client, model, scenario, history, "user_ended", started_at)
             return
 
         history.append({"role": "user", "content": user_input})
@@ -78,7 +85,9 @@ def run_scenario(client, model: str, scenario: dict) -> None:
 
         if ended:
             print("--- Scene complete ---\n")
+            record_and_save(client, model, scenario, history, "resolved", started_at)
             return
         if limit_reached:
             print("--- Scene reached its turn limit ---\n")
+            record_and_save(client, model, scenario, history, "turn_limit", started_at)
             return

@@ -8,9 +8,11 @@ loop) differs. See conversation.py for the shared turn-processing logic.
 
 import json
 import os
+from datetime import datetime, timezone
 
 from flask import Flask, jsonify, render_template, request
 
+from analysis import record_and_save
 from conversation import build_system_prompt, process_reply
 from llm import generate_reply, get_client, get_model
 from scenarios.loader import load_scenarios
@@ -29,8 +31,13 @@ _model = get_model()
 
 def public_scenario(scenario: dict) -> dict:
     """Strip fields the browser has no business seeing -- the system prompt
-    that governs the AI character, and the token that ends the scene."""
-    return {k: v for k, v in scenario.items() if k not in ("system_prompt", "end_signal")}
+    and persona anchor that govern the AI character, and the token that
+    ends the scene."""
+    return {
+        k: v
+        for k, v in scenario.items()
+        if k not in ("system_prompt", "end_signal", "persona_anchor")
+    }
 
 
 def get_scenario_or_none(scenario_id: str) -> dict | None:
@@ -73,6 +80,17 @@ def chat():
 
     reply, ended, limit_reached = process_reply(scenario, turn, raw_reply)
 
+    if ended or limit_reached:
+        full_history = clean_history + [{"role": "assistant", "content": reply}]
+        record_and_save(
+            _client,
+            _model,
+            scenario,
+            full_history,
+            ended_reason="resolved" if ended else "turn_limit",
+            started_at=body.get("startedAt") or datetime.now(timezone.utc).isoformat(),
+        )
+
     return jsonify(
         {
             "reply": reply,
@@ -82,6 +100,38 @@ def chat():
             "maxTurns": scenario["max_turns"],
         }
     )
+
+
+@app.route("/api/end", methods=["POST"])
+def end_conversation():
+    """Lets the player end a scene on their own terms instead of only via the
+    model's own end signal or the turn limit. Still produces the same
+    post-conversation analysis record as a natural ending."""
+    body = request.get_json(silent=True) or {}
+    scenario_id = body.get("scenarioId")
+    history = body.get("history")
+
+    if not scenario_id or not isinstance(history, list):
+        return jsonify({"error": "scenarioId and history are required"}), 400
+
+    scenario = get_scenario_or_none(scenario_id)
+    if scenario is None:
+        return jsonify({"error": "Unknown scenario"}), 404
+
+    clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
+    if not any(m["role"] == "user" for m in clean_history):
+        return jsonify({"error": "History must include at least one user message"}), 400
+
+    record_and_save(
+        _client,
+        _model,
+        scenario,
+        clean_history,
+        ended_reason="user_ended",
+        started_at=body.get("startedAt") or datetime.now(timezone.utc).isoformat(),
+    )
+
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

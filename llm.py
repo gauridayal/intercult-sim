@@ -26,7 +26,7 @@ def generate_reply(
     model: str,
     system_prompt: str,
     history: list[dict],
-    max_tokens: int = 150,
+    max_tokens: int = 320,
     temperature: float = 0.8,
 ) -> str:
     """history is a list of {"role": "user"|"assistant", "content": str}."""

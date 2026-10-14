@@ -21,6 +21,10 @@ env/
 # Logs
 *.log
 
+# Post-conversation analysis records (local fallback store, may contain
+# full conversation transcripts -- not for version control)
+analysis_logs/
+
 # Local databases
 *.db
 *.sqlite

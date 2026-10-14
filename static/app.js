@@ -8,12 +8,23 @@
     "airport-biosecurity": "plum",
     "silent-meeting": "sage",
     "gursha-dinner": "rose",
-    "the-redemption-arc": "sand",
-    "rough-cut": "slate",
+    "the-morning-show": "sand",
+    "screenplay": "slate",
+    "what-she-doesnt-know": "teal",
+    "the-introduction": "clay",
+    "mother-tongue": "saffron",
+    "straight-talk": "azure",
+    "bamboo-ceiling": "moss",
   };
 
   function accentFor(id) {
     return ACCENT_BY_ID[id] || "sand";
+  }
+
+  function flagChip(person) {
+    if (!person || !person.country) return null;
+    const label = person.flag ? `${person.flag} ${person.country}` : person.country;
+    return el("span", { class: "country-chip", text: label });
   }
 
   const state = {
@@ -25,6 +36,9 @@
     error: null,
     ended: false,
     limitReached: false,
+    userEnded: false,
+    endingConversation: false,
+    startedAt: null,
   };
 
   function el(tag, attrs, children) {
@@ -135,6 +149,7 @@
       el("div", { class: "card" }, [
         el("p", { class: "persona-label", text: "You are" }),
         el("p", { class: "persona-name serif", text: scenario.player.name }),
+        flagChip(scenario.player),
         el("p", { class: "persona-bio", text: scenario.player.bio }),
       ])
     );
@@ -145,6 +160,7 @@
           class: `persona-name serif accent-${accent}-text`,
           text: scenario.ai_character.name,
         }),
+        flagChip(scenario.ai_character),
         el("p", { class: "persona-bio", text: scenario.ai_character.bio }),
       ])
     );
@@ -166,6 +182,9 @@
     state.error = null;
     state.ended = false;
     state.limitReached = false;
+    state.userEnded = false;
+    state.endingConversation = false;
+    state.startedAt = new Date().toISOString();
     state.input = "";
     state.view = "chat";
     render();
@@ -179,6 +198,9 @@
     state.error = null;
     state.ended = false;
     state.limitReached = false;
+    state.userEnded = false;
+    state.endingConversation = false;
+    state.startedAt = null;
     render();
   }
 
@@ -193,6 +215,7 @@
       el("div", {}, [
         el("p", { class: "chat-title serif", text: scenario.title }),
         el("p", { class: `chat-location accent-${accent}-text`, text: scenario.location }),
+        flagChip(scenario.ai_character),
       ]),
       el("button", { class: "back-link", text: "Leave scenario", onclick: backToMenu }),
     ]);
@@ -228,8 +251,32 @@
         ])
       );
     }
+    if (state.userEnded) {
+      wrap.appendChild(
+        el("div", { class: "notice ended" }, [
+          document.createTextNode("You ended this conversation. "),
+          el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
+        ])
+      );
+    }
 
-    const inputDisabled = state.loading || state.ended || state.limitReached;
+    const conversationOver = state.ended || state.limitReached || state.userEnded;
+    const inputDisabled = state.loading || conversationOver;
+    const hasReplied = state.messages.some((m) => m.role === "user");
+
+    if (!conversationOver && hasReplied) {
+      wrap.appendChild(
+        el("div", { class: "end-row" }, [
+          el("button", {
+            class: "end-btn",
+            type: "button",
+            text: state.endingConversation ? "Ending…" : "End conversation",
+            disabled: state.endingConversation ? "disabled" : undefined,
+            onclick: endConversation,
+          }),
+        ])
+      );
+    }
 
     const form = el("form", {
       class: "chat-form",
@@ -299,7 +346,7 @@
 
   async function sendMessage() {
     const text = state.input.trim();
-    if (!text || state.loading || state.ended || state.limitReached) return;
+    if (!text || state.loading || state.ended || state.limitReached || state.userEnded) return;
 
     const nextMessages = [...state.messages, { role: "user", content: text }];
     state.messages = nextMessages;
@@ -312,7 +359,11 @@
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenarioId: state.selected.id, history: nextMessages }),
+        body: JSON.stringify({
+          scenarioId: state.selected.id,
+          history: nextMessages,
+          startedAt: state.startedAt,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong talking to the model.");
@@ -326,6 +377,33 @@
       state.error = err instanceof Error ? err.message : "Something went wrong.";
     } finally {
       state.loading = false;
+      render();
+    }
+  }
+
+  async function endConversation() {
+    if (state.endingConversation || state.ended || state.limitReached || state.userEnded) return;
+    state.endingConversation = true;
+    state.error = null;
+    render();
+
+    try {
+      const res = await fetch("/api/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: state.selected.id,
+          history: state.messages,
+          startedAt: state.startedAt,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't end the conversation cleanly.");
+      state.userEnded = true;
+    } catch (err) {
+      state.error = err instanceof Error ? err.message : "Something went wrong.";
+    } finally {
+      state.endingConversation = false;
       render();
     }
   }

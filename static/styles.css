@@ -16,6 +16,16 @@
   --sand-soft: #f3e4c7;
   --slate: #4f6470;
   --slate-soft: #dde6ea;
+  --teal: #3d7a74;
+  --teal-soft: #dcebe9;
+  --clay: #a85f45;
+  --clay-soft: #f0ddd3;
+  --saffron: #b8722f;
+  --saffron-soft: #f2e2cd;
+  --azure: #3c6e91;
+  --azure-soft: #dbe7ee;
+  --moss: #5d7a3f;
+  --moss-soft: #e4ead9;
 }
 
 * {
@@ -228,6 +238,17 @@ input {
   margin-top: 0.5rem;
 }
 
+.country-chip {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--surface-soft);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+}
+
 .begin-btn {
   margin-top: 2rem;
   width: 100%;
@@ -358,6 +379,33 @@ input {
   color: var(--ink-soft);
 }
 
+.end-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.6rem;
+}
+
+.end-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.end-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink-soft);
+}
+
+.end-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .chat-form {
   display: flex;
   align-items: flex-end;
@@ -427,3 +475,28 @@ input {
 .accent-slate-dot { background: var(--slate); }
 .accent-slate-text { color: var(--slate); }
 .accent-slate-solid { background: var(--slate); }
+
+.accent-teal-chip { background: var(--teal-soft); color: var(--teal); }
+.accent-teal-dot { background: var(--teal); }
+.accent-teal-text { color: var(--teal); }
+.accent-teal-solid { background: var(--teal); }
+
+.accent-clay-chip { background: var(--clay-soft); color: var(--clay); }
+.accent-clay-dot { background: var(--clay); }
+.accent-clay-text { color: var(--clay); }
+.accent-clay-solid { background: var(--clay); }
+
+.accent-saffron-chip { background: var(--saffron-soft); color: var(--saffron); }
+.accent-saffron-dot { background: var(--saffron); }
+.accent-saffron-text { color: var(--saffron); }
+.accent-saffron-solid { background: var(--saffron); }
+
+.accent-azure-chip { background: var(--azure-soft); color: var(--azure); }
+.accent-azure-dot { background: var(--azure); }
+.accent-azure-text { color: var(--azure); }
+.accent-azure-solid { background: var(--azure); }
+
+.accent-moss-chip { background: var(--moss-soft); color: var(--moss); }
+.accent-moss-dot { background: var(--moss); }
+.accent-moss-text { color: var(--moss); }
+.accent-moss-solid { background: var(--moss); }
