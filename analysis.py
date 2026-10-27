@@ -7,15 +7,24 @@ in-character replies and account for how its read of the player shifted --
 and what bias or stereotyping it can see in its own responses. That's the
 actual research artifact; the roleplay is just what produces it.
 
-Persistence is pluggable: if SHEETS_WEBHOOK_URL is set, each record is
-POSTed to a Google Apps Script Web App (see README / deploy/sheets_webhook.gs)
-which creates one formatted Google Doc per session (full analysis plus the
-transcript) and appends one index row to a Sheet linking to it -- the only
-persistence that survives Vercel's serverless, no-local-disk environment.
-Local runs additionally always write a numbered JSON file under
-ANALYSIS_LOG_DIR, since there's a real disk to write to.
+Persistence is pluggable, and more than one path can be active at once:
+
+- If GITHUB_DATA_REPO and GITHUB_DATA_TOKEN are set, each record is committed
+  as a numbered, readable Markdown file to a "sessions/" folder in that repo
+  via GitHub's Contents API -- no OAuth dance, just one bearer token. This is
+  the recommended path and survives Vercel's serverless, no-local-disk
+  environment.
+- If SHEETS_WEBHOOK_URL is set, each record is additionally POSTed to a
+  Google Apps Script Web App (see README / deploy/sheets_webhook.gs) which
+  creates one formatted Google Doc per session plus an index row in a Sheet.
+  Kept as an optional second path; in practice the Apps Script Web App
+  deployment flow has been fragile (OAuth/access-level quirks), so GitHub is
+  the one actually relied on.
+- Local runs additionally always write a numbered JSON file under
+  ANALYSIS_LOG_DIR, since there's a real disk to write to.
 """
 
+import base64
 import json
 import os
 import urllib.error
@@ -106,6 +115,116 @@ def _write_local_file(record: dict) -> str:
     return str(path)
 
 
+def _render_markdown(record: dict, index: int) -> str:
+    analysis = record.get("analysis") or {}
+    ai_label = record["ai_character_name"]
+    if record.get("ai_character_country"):
+        ai_label += f" ({record['ai_character_country']})"
+
+    participant = record.get("participant") or {}
+    participant_label = ", ".join(
+        str(v) for v in (participant.get("name"), participant.get("gender"), participant.get("age")) if v
+    ) or "_(not collected)_"
+
+    sections = [
+        ("Initial assumptions", analysis.get("initial_assumptions")),
+        ("Shift over the conversation", analysis.get("shift_over_conversation")),
+        ("Biases exhibited", analysis.get("biases_exhibited")),
+        ("Response to pushback", analysis.get("response_to_pushback")),
+        ("Final understanding", analysis.get("final_understanding")),
+        ("Resolution quality", analysis.get("resolution_quality")),
+    ]
+
+    lines = [
+        f"# Session {index} -- {record['scenario_title']}",
+        "",
+        f"- **Participant:** {participant_label}",
+        f"- **Player character:** {record['player_name']}",
+        f"- **AI character:** {ai_label}",
+        f"- **Scenario:** `{record['scenario_id']}`",
+        f"- **Ended:** {record['ended_reason']}",
+        f"- **Turns:** {record['turn_count']}",
+        f"- **Started:** {record.get('started_at', '')}",
+        f"- **Ended at:** {record.get('ended_at', '')}",
+        "",
+        "## Analysis",
+        "",
+    ]
+    for title, body in sections:
+        lines.append(f"### {title}")
+        lines.append("")
+        lines.append(body or "_(not provided)_")
+        lines.append("")
+    if analysis.get("raw"):
+        lines += ["### Raw model output (analysis was not valid JSON)", "", analysis["raw"], ""]
+    if analysis.get("error"):
+        lines += ["### Analysis error", "", analysis["error"], ""]
+
+    lines.append("## Transcript")
+    lines.append("")
+    for m in record.get("transcript", []):
+        speaker = record["player_name"] if m.get("role") == "user" else record["ai_character_name"]
+        lines.append(f"**{speaker}:** {m.get('content', '')}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _github_next_index(repo: str, token: str) -> int:
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/contents/sessions",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "intercult-sim",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            existing = json.loads(resp.read())
+            return len([f for f in existing if f.get("name", "").endswith(".md")]) + 1
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:  # "sessions/" doesn't exist yet -- this is the first record
+            return 1
+        raise
+
+
+def _commit_to_github(record: dict) -> None:
+    repo = os.environ.get("GITHUB_DATA_REPO")
+    token = os.environ.get("GITHUB_DATA_TOKEN")
+    if not repo or not token:
+        return
+
+    index = _github_next_index(repo, token)
+    filename = f"{index:04d}_{record['scenario_id']}_{record['ended_reason']}.md"
+    content = _render_markdown(record, index)
+
+    body = json.dumps(
+        {
+            "message": f"Session {index}: {record['scenario_title']} ({record['ended_reason']})",
+            "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/contents/sessions/{filename}",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "intercult-sim",
+            "Content-Type": "application/json",
+        },
+        method="PUT",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except urllib.error.HTTPError as exc:
+        print(f"[analysis] failed to commit to GITHUB_DATA_REPO: {exc.code} {exc.read().decode('utf-8')[:300]}")
+    except (urllib.error.URLError, TimeoutError) as exc:
+        print(f"[analysis] failed to commit to GITHUB_DATA_REPO: {exc}")
+
+
 def _post_to_webhook(record: dict) -> None:
     url = os.environ.get("SHEETS_WEBHOOK_URL")
     if not url:
@@ -132,16 +251,22 @@ def record_and_save(
     history: list[dict],
     ended_reason: str,
     started_at: str,
+    participant: dict | None = None,
 ) -> dict:
     """Builds the reflection, then saves it everywhere configured to receive it.
 
     ended_reason is one of "resolved", "turn_limit", "user_ended".
+    participant is the real person's self-reported {name, gender, age} --
+    distinct from the fictional player character name in the scenario --
+    collected once per session by the web frontend before they pick a
+    scenario. Optional (the terminal version doesn't collect it).
     Never raises -- a broken analysis/save path should never take down the
     conversation it's reflecting on.
     """
     record = {
         "scenario_id": scenario["id"],
         "scenario_title": scenario["title"],
+        "participant": participant or {},
         "player_name": scenario["player"]["name"],
         "ai_character_name": scenario["ai_character"]["name"],
         "ai_character_country": scenario["ai_character"].get("country"),
@@ -160,6 +285,11 @@ def record_and_save(
         record["local_path"] = _write_local_file(record)
     except OSError as exc:
         print(f"[analysis] failed to write local analysis file: {exc}")
+
+    try:
+        _commit_to_github(record)
+    except Exception as exc:  # noqa: BLE001 -- GitHub commit failure must not break the scene
+        print(f"[analysis] unexpected error committing to GitHub: {exc}")
 
     try:
         _post_to_webhook(record)

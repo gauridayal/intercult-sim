@@ -238,42 +238,33 @@ earned by what actually happened. That reflection, plus some metadata
 (scenario, turn count, how it ended, timestamps), is the actual research
 artifact this project produces.
 
-Persistence is pluggable via environment variables:
+Persistence is pluggable via environment variables, and more than one
+path can be active at once:
 
 - **Local runs always write a file.** Every record (full analysis,
   metadata, and the full transcript) is saved as a numbered JSON file
   under `analysis_logs/` (configurable via `ANALYSIS_LOG_DIR`) -- e.g.
   `0001_airport-biosecurity_resolved.json`. This directory is
   gitignored; it's local output, not source.
+- **`GITHUB_DATA_REPO` + `GITHUB_DATA_TOKEN`, if set, commit the record
+  as a numbered Markdown file to a `sessions/` folder in a private
+  GitHub repo** -- the recommended path, and the one actually relied
+  on. Each file has the title, metadata, every analysis section under
+  its own heading, then the full transcript, and renders readably
+  right on github.com. `GITHUB_DATA_REPO` is `owner/repo`; the token is
+  a fine-grained GitHub personal access token scoped to *only* that one
+  repo with Contents: Read and write. This survives Vercel's
+  serverless, no-persistent-disk environment, and setup is just: create
+  a private repo, generate a scoped token, set both as env vars. No
+  OAuth flow, no deployment-settings quirks.
 - **`SHEETS_WEBHOOK_URL`, if set, additionally posts the record to a
   Google Apps Script Web App** (`deploy/sheets_webhook.gs`) that turns
-  it into a **formatted Google Doc for that one session** (title,
-  metadata, each analysis section under its own heading, then the full
-  transcript) inside a Drive folder of your choosing, plus **one index
-  row in a Google Sheet** (scenario, player, AI character, how it
-  ended, turn count, a link to that session's Doc) -- long-form content
-  in a readable Doc, a scannable index in the Sheet, rather than
-  cramming paragraphs into a cell. This is also the only option that
-  survives Vercel's serverless, no-persistent-disk environment, and
-  it's free. To set it up:
-  1. Create a new Google Sheet (any name) -- this becomes the index.
-  2. Create a Google Drive folder (any name) -- this is where session
-     Docs get created. Grab its ID from the folder's URL
-     (`drive.google.com/drive/folders/<THIS_PART>`).
-  3. On the Sheet: Extensions -> Apps Script, delete the placeholder
-     code, paste in `deploy/sheets_webhook.gs`.
-  4. Project Settings (gear icon) -> Script Properties -> add
-     `WEBHOOK_SECRET` (any random value you pick -- stops strangers
-     from posting junk into your Drive/Sheet if the URL ever leaks) and
-     `DRIVE_FOLDER_ID` (from step 2).
-  5. Deploy -> New deployment -> type **Web app** -> Execute as **Me**
-     -> Who has access **Anyone** -> Deploy. Copy the Web app URL it
-     gives you.
-  6. Set `SHEETS_WEBHOOK_URL` to that URL and `SHEETS_WEBHOOK_SECRET` to
-     the same value you put in `WEBHOOK_SECRET`, both in `.env` locally
-     and as environment variables on your Vercel project (see below).
-     `DRIVE_FOLDER_ID` only ever lives in the Apps Script's Script
-     Properties -- the Python backend never needs or sees it.
+  it into a formatted Google Doc per session plus an index row in a
+  Sheet. Kept as an optional second path -- in practice, the Apps
+  Script Web App deployment flow proved fragile (OAuth errors, "Who
+  has access" vs "Execute as" confusion, settings not reliably applying
+  on edit rather than a fresh deployment), so it's not the one to rely
+  on; GitHub above is sufficient on its own.
 
 A broken or unreachable analysis/save path never breaks the
 conversation it's reflecting on -- failures are logged server-side and
@@ -287,19 +278,17 @@ from something running on the same network -- that's why local
 
 - **Vercel** -- `api/index.py` and `vercel.json` are already set up
   (Vercel's Python runtime, routed so the one Flask app serves
-  everything). Push this repo to GitHub and import it in the Vercel
-  dashboard -- their cloud does the build, no local Node or Vercel CLI
-  needed. You'll need to either point `OPENAI_API_BASE_URL` (set as a
-  Vercel project env var) at something the internet can reach -- a
-  tunnel to the LAN server, or a real hosted API -- since Vercel's
-  servers can't reach a private LAN IP either. Also set
-  `SHEETS_WEBHOOK_URL` and `SHEETS_WEBHOOK_SECRET` there (see
-  "Post-conversation analysis" above) -- Vercel's functions have no
-  persistent disk, so without those two set, analysis records are
-  generated but never actually saved anywhere once deployed. This
-  deployment path is untested from here (no Vercel account access) --
-  double check against Vercel's current Python docs if something
-  doesn't line up.
+  everything), and **this is live and confirmed working** at
+  intercult-sim.vercel.app. Set these as Vercel project environment
+  variables (Settings -> Environment Variables, then redeploy for
+  changes to take effect): `OPENAI_API_KEY` (a real OpenAI key --
+  `OPENAI_API_BASE_URL` left blank so it defaults to OpenAI's real
+  endpoint, since Vercel's servers can't reach a private LAN server),
+  `OPENAI_MODEL` (e.g. `gpt-4o-mini`), and `GITHUB_DATA_REPO` +
+  `GITHUB_DATA_TOKEN` (see "Post-conversation analysis" above) so
+  finished sessions actually get saved somewhere once deployed --
+  without those two, analysis records are generated but never
+  persisted anywhere outside that one serverless invocation.
 - **A Python-native host** (Render, Railway, Fly.io, etc.) would run
   `app.py` closer to how Flask actually works (a persistent process
   rather than a serverless function per request) -- generally less

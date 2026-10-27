@@ -28,7 +28,8 @@
   }
 
   const state = {
-    view: "menu", // 'menu' | 'briefing' | 'chat'
+    view: "intake", // 'intake' | 'menu' | 'briefing' | 'chat'
+    participant: { name: "", gender: "", age: "" },
     selected: null,
     messages: [], // {role: 'user'|'assistant', content: string}
     input: "",
@@ -60,9 +61,100 @@
 
   function render() {
     root.innerHTML = "";
-    if (state.view === "menu") root.appendChild(renderMenu());
+    if (state.view === "intake") root.appendChild(renderIntake());
+    else if (state.view === "menu") root.appendChild(renderMenu());
     else if (state.view === "briefing") root.appendChild(renderBriefing());
     else if (state.view === "chat") root.appendChild(renderChat());
+  }
+
+  // ---------- Intake ----------
+
+  function intakeComplete() {
+    const { name, gender, age } = state.participant;
+    return Boolean(name.trim() && gender && age && Number(age) >= 13 && Number(age) <= 120);
+  }
+
+  function renderIntake() {
+    const wrap = el("main", { class: "wrap" });
+
+    wrap.appendChild(el("div", { class: "eyebrow", text: "Intercultural Communication" }));
+    wrap.appendChild(el("h1", { class: "page-title", text: "Before we begin" }));
+    wrap.appendChild(
+      el("p", {
+        class: "page-intro",
+        text:
+          "A few quick details for the research record. This is about you, the " +
+          "real person testing this -- not the character you'll play. Never shown " +
+          "to the AI character, and not reused anywhere else.",
+      })
+    );
+
+    const form = el("form", {
+      class: "intake-form",
+      onsubmit: (e) => {
+        e.preventDefault();
+        if (!intakeComplete()) return;
+        state.view = "menu";
+        render();
+      },
+    });
+
+    const nameInput = el("input", {
+      class: "intake-input",
+      type: "text",
+      autocomplete: "off",
+      placeholder: "Your name",
+    });
+    nameInput.value = state.participant.name;
+
+    const genderSelect = el("select", { class: "intake-input" }, [
+      el("option", { value: "", text: "Select one" }),
+      el("option", { value: "Male", text: "Male" }),
+      el("option", { value: "Female", text: "Female" }),
+      el("option", { value: "Non-binary", text: "Non-binary" }),
+      el("option", { value: "Prefer not to say", text: "Prefer not to say" }),
+    ]);
+    genderSelect.value = state.participant.gender;
+
+    const ageInput = el("input", {
+      class: "intake-input",
+      type: "number",
+      min: "13",
+      max: "120",
+      placeholder: "Your age",
+    });
+    ageInput.value = state.participant.age;
+
+    const continueBtn = el("button", {
+      type: "submit",
+      class: "begin-btn accent-sand-solid",
+      text: "Continue",
+    });
+    continueBtn.disabled = !intakeComplete();
+
+    const refreshContinue = () => {
+      continueBtn.disabled = !intakeComplete();
+    };
+    nameInput.addEventListener("input", () => {
+      state.participant.name = nameInput.value;
+      refreshContinue();
+    });
+    genderSelect.addEventListener("change", () => {
+      state.participant.gender = genderSelect.value;
+      refreshContinue();
+    });
+    ageInput.addEventListener("input", () => {
+      state.participant.age = ageInput.value;
+      refreshContinue();
+    });
+
+    form.appendChild(el("label", { class: "intake-label", text: "Name" }, [nameInput]));
+    form.appendChild(el("label", { class: "intake-label", text: "Gender" }, [genderSelect]));
+    form.appendChild(el("label", { class: "intake-label", text: "Age" }, [ageInput]));
+    form.appendChild(continueBtn);
+
+    wrap.appendChild(form);
+    return wrap;
   }
 
   // ---------- Menu ----------
@@ -363,6 +455,7 @@
           scenarioId: state.selected.id,
           history: nextMessages,
           startedAt: state.startedAt,
+          participant: state.participant,
         }),
       });
       const data = await res.json();
@@ -395,6 +488,7 @@
           scenarioId: state.selected.id,
           history: state.messages,
           startedAt: state.startedAt,
+          participant: state.participant,
         }),
       });
       const data = await res.json();

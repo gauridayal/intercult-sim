@@ -89,6 +89,7 @@ def chat():
             full_history,
             ended_reason="resolved" if ended else "turn_limit",
             started_at=body.get("startedAt") or datetime.now(timezone.utc).isoformat(),
+            participant=body.get("participant"),
         )
 
     return jsonify(
@@ -129,6 +130,7 @@ def end_conversation():
         clean_history,
         ended_reason="user_ended",
         started_at=body.get("startedAt") or datetime.now(timezone.utc).isoformat(),
+        participant=body.get("participant"),
     )
 
     return jsonify({"ok": True})
