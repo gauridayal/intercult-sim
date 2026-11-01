@@ -29,7 +29,7 @@
 
   const state = {
     view: "intake", // 'intake' | 'menu' | 'briefing' | 'chat'
-    participant: { name: "", gender: "", age: "" },
+    participant: { name: "", gender: "", age: "", identifier: "" },
     selected: null,
     messages: [], // {role: 'user'|'assistant', content: string}
     input: "",
@@ -38,8 +38,10 @@
     ended: false,
     limitReached: false,
     userEnded: false,
-    endingConversation: false,
     startedAt: null,
+    feedback: { overall: "", naturalness: "", comments: "" },
+    feedbackSubmitted: false,
+    feedbackSubmitting: false,
   };
 
   function el(tag, attrs, children) {
@@ -70,8 +72,12 @@
   // ---------- Intake ----------
 
   function intakeComplete() {
-    const { name, gender, age } = state.participant;
-    return Boolean(name.trim() && gender && age && Number(age) >= 13 && Number(age) <= 120);
+    const { name, gender, age, identifier } = state.participant;
+    // Deliberately not restricted to email format -- a group study might
+    // assign plain ID numbers/codes to known participants instead.
+    return Boolean(
+      name.trim() && gender && age && Number(age) >= 13 && Number(age) <= 120 && identifier.trim()
+    );
   }
 
   function renderIntake() {
@@ -85,7 +91,10 @@
         text:
           "A few quick details for the research record. This is about you, the " +
           "real person testing this -- not the character you'll play. Never shown " +
-          "to the AI character, and not reused anywhere else.",
+          "to the AI character. Your email or ID number is used only to identify " +
+          "you, so if you take this more than once, your sessions can be matched " +
+          "up and compared -- use whichever one you were given, or your email if " +
+          "you weren't given an ID.",
       })
     );
 
@@ -98,6 +107,14 @@
         render();
       },
     });
+
+    const identifierInput = el("input", {
+      class: "intake-input",
+      type: "text",
+      autocomplete: "off",
+      placeholder: "you@example.com or your ID number",
+    });
+    identifierInput.value = state.participant.identifier;
 
     const nameInput = el("input", {
       class: "intake-input",
@@ -135,6 +152,10 @@
     const refreshContinue = () => {
       continueBtn.disabled = !intakeComplete();
     };
+    identifierInput.addEventListener("input", () => {
+      state.participant.identifier = identifierInput.value;
+      refreshContinue();
+    });
     nameInput.addEventListener("input", () => {
       state.participant.name = nameInput.value;
       refreshContinue();
@@ -148,6 +169,9 @@
       refreshContinue();
     });
 
+    form.appendChild(
+      el("label", { class: "intake-label", text: "Email or ID number" }, [identifierInput])
+    );
     form.appendChild(el("label", { class: "intake-label", text: "Name" }, [nameInput]));
     form.appendChild(el("label", { class: "intake-label", text: "Gender" }, [genderSelect]));
     form.appendChild(el("label", { class: "intake-label", text: "Age" }, [ageInput]));
@@ -275,9 +299,11 @@
     state.ended = false;
     state.limitReached = false;
     state.userEnded = false;
-    state.endingConversation = false;
     state.startedAt = new Date().toISOString();
     state.input = "";
+    state.feedback = { overall: "", naturalness: "", comments: "" };
+    state.feedbackSubmitted = false;
+    state.feedbackSubmitting = false;
     state.view = "chat";
     render();
   }
@@ -291,8 +317,10 @@
     state.ended = false;
     state.limitReached = false;
     state.userEnded = false;
-    state.endingConversation = false;
     state.startedAt = null;
+    state.feedback = { overall: "", naturalness: "", comments: "" };
+    state.feedbackSubmitted = false;
+    state.feedbackSubmitting = false;
     render();
   }
 
@@ -324,35 +352,41 @@
     }
     wrap.appendChild(log);
 
+    const conversationOver = state.ended || state.limitReached || state.userEnded;
+
     if (state.error) {
       wrap.appendChild(el("p", { class: "notice error", text: state.error }));
     }
-    if (state.ended) {
-      wrap.appendChild(
-        el("div", { class: "notice ended" }, [
-          document.createTextNode("Scene complete. "),
-          el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
-        ])
-      );
-    }
-    if (state.limitReached) {
-      wrap.appendChild(
-        el("div", { class: "notice limit" }, [
-          document.createTextNode("This scene reached its turn limit. "),
-          el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
-        ])
-      );
-    }
-    if (state.userEnded) {
-      wrap.appendChild(
-        el("div", { class: "notice ended" }, [
-          document.createTextNode("You ended this conversation. "),
-          el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
-        ])
-      );
+
+    if (conversationOver && !state.feedbackSubmitted) {
+      wrap.appendChild(renderFeedbackForm());
+    } else {
+      if (state.ended) {
+        wrap.appendChild(
+          el("div", { class: "notice ended" }, [
+            document.createTextNode("Scene complete. "),
+            el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
+          ])
+        );
+      }
+      if (state.limitReached) {
+        wrap.appendChild(
+          el("div", { class: "notice limit" }, [
+            document.createTextNode("This scene reached its turn limit. "),
+            el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
+          ])
+        );
+      }
+      if (state.userEnded) {
+        wrap.appendChild(
+          el("div", { class: "notice ended" }, [
+            document.createTextNode("You ended this conversation. "),
+            el("button", { class: "link", text: "Try another scenario", onclick: backToMenu }),
+          ])
+        );
+      }
     }
 
-    const conversationOver = state.ended || state.limitReached || state.userEnded;
     const inputDisabled = state.loading || conversationOver;
     const hasReplied = state.messages.some((m) => m.role === "user");
 
@@ -362,8 +396,7 @@
           el("button", {
             class: "end-btn",
             type: "button",
-            text: state.endingConversation ? "Ending…" : "End conversation",
-            disabled: state.endingConversation ? "disabled" : undefined,
+            text: "End conversation",
             onclick: endConversation,
           }),
         ])
@@ -474,14 +507,114 @@
     }
   }
 
-  async function endConversation() {
-    if (state.endingConversation || state.ended || state.limitReached || state.userEnded) return;
-    state.endingConversation = true;
-    state.error = null;
+  function endConversation() {
+    if (state.ended || state.limitReached || state.userEnded) return;
+    // Nothing to send yet -- the scene is only actually saved once feedback
+    // is submitted (or skipped) in renderFeedbackForm/submitFeedback below.
+    state.userEnded = true;
+    render();
+  }
+
+  // ---------- Feedback ----------
+
+  function renderFeedbackForm() {
+    const box = el("div", { class: "feedback-box" });
+    box.appendChild(
+      el("p", { class: "feedback-title serif", text: "Before you go -- quick feedback?" })
+    );
+    box.appendChild(
+      el("p", {
+        class: "feedback-intro",
+        text: "Optional, but genuinely useful for the research. Takes about 10 seconds.",
+      })
+    );
+
+    function ratingSelect() {
+      return el("select", { class: "intake-input" }, [
+        el("option", { value: "", text: "Select one" }),
+        el("option", { value: "1", text: "1" }),
+        el("option", { value: "2", text: "2" }),
+        el("option", { value: "3", text: "3" }),
+        el("option", { value: "4", text: "4" }),
+        el("option", { value: "5", text: "5" }),
+      ]);
+    }
+
+    const form = el("form", {
+      class: "intake-form",
+      onsubmit: (e) => {
+        e.preventDefault();
+        submitFeedback(false);
+      },
+    });
+
+    const overallSelect = ratingSelect();
+    overallSelect.value = state.feedback.overall;
+    overallSelect.addEventListener("change", () => {
+      state.feedback.overall = overallSelect.value;
+    });
+
+    const naturalSelect = ratingSelect();
+    naturalSelect.value = state.feedback.naturalness;
+    naturalSelect.addEventListener("change", () => {
+      state.feedback.naturalness = naturalSelect.value;
+    });
+
+    const commentsInput = el("textarea", {
+      class: "intake-input feedback-comments",
+      rows: "3",
+      placeholder: "Anything else you'd like to share? (optional)",
+    });
+    commentsInput.value = state.feedback.comments;
+    commentsInput.addEventListener("input", () => {
+      state.feedback.comments = commentsInput.value;
+    });
+
+    form.appendChild(
+      el(
+        "label",
+        { class: "intake-label", text: "Overall, how would you rate this conversation? (1-5)" },
+        [overallSelect]
+      )
+    );
+    form.appendChild(
+      el(
+        "label",
+        { class: "intake-label", text: "How natural/human did the AI feel? (1-5)" },
+        [naturalSelect]
+      )
+    );
+    form.appendChild(el("label", { class: "intake-label", text: "Comments" }, [commentsInput]));
+
+    const submitBtn = el("button", {
+      type: "submit",
+      class: "begin-btn accent-sand-solid",
+      text: state.feedbackSubmitting ? "Submitting…" : "Submit feedback",
+    });
+    submitBtn.disabled = state.feedbackSubmitting;
+    form.appendChild(submitBtn);
+    box.appendChild(form);
+
+    const skipBtn = el("button", {
+      type: "button",
+      class: "link feedback-skip",
+      text: "Skip",
+      onclick: () => submitFeedback(true),
+    });
+    skipBtn.disabled = state.feedbackSubmitting;
+    box.appendChild(skipBtn);
+
+    return box;
+  }
+
+  async function submitFeedback(skip) {
+    if (state.feedbackSubmitting || state.feedbackSubmitted) return;
+    state.feedbackSubmitting = true;
     render();
 
+    const endedReason = state.ended ? "resolved" : state.limitReached ? "turn_limit" : "user_ended";
     try {
-      const res = await fetch("/api/end", {
+      await fetch("/api/finish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -489,15 +622,21 @@
           history: state.messages,
           startedAt: state.startedAt,
           participant: state.participant,
+          endedReason,
+          feedback: skip
+            ? null
+            : {
+                overall_rating: state.feedback.overall || null,
+                naturalness_rating: state.feedback.naturalness || null,
+                comments: state.feedback.comments || null,
+              },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't end the conversation cleanly.");
-      state.userEnded = true;
     } catch (err) {
-      state.error = err instanceof Error ? err.message : "Something went wrong.";
+      // Saving failures shouldn't block the player from moving on.
     } finally {
-      state.endingConversation = false;
+      state.feedbackSubmitting = false;
+      state.feedbackSubmitted = true;
       render();
     }
   }

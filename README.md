@@ -72,9 +72,12 @@ browser UI instead of a terminal -- pastel-themed, no build step
   scenario menu (public scenario fields only -- system prompts and end
   tokens never reach the browser); `POST /api/chat` takes the running
   message history and returns the next reply, mirroring `engine.py`'s
-  turn loop over HTTP instead of stdin/stdout; `POST /api/end` lets the
-  player end a scene on their own terms, producing the same analysis
-  record a natural ending would.
+  turn loop over HTTP instead of stdin/stdout. Ending a scene (naturally,
+  by turn limit, or the player choosing to) doesn't save anything by
+  itself -- the frontend shows a short optional feedback form first, and
+  `POST /api/finish` (called once, after that form is submitted or
+  skipped) is what actually produces the analysis record, so the
+  participant's own feedback lands in the same record as the model's.
 - `templates/index.html`, `static/styles.css`, `static/app.js` -- the
   browser UI. Plain HTML/CSS/vanilla JS, no framework or build step --
   chosen because Node.js isn't usable in this environment.
@@ -225,38 +228,76 @@ analysis record a natural ending would (see below), just tagged
 
 ## Post-conversation analysis
 
+Before picking a scenario, the web app asks the real participant for
+their **email or an assigned ID number (used as their identifier),
+name, gender, and age** -- separate from the fictional in-character
+player name, and never shown to the AI character. The identifier field
+deliberately accepts either: a plain email for general use, or a
+pre-assigned ID code for group studies that recruit specific known
+participants ahead of time. Either way, it exists so the same person's
+multiple sessions (different scenarios, different days) can be found
+and compared as a set rather than scattered anonymously.
+
 When a scene ends -- by resolving, by hitting its turn limit, or by the
-player ending it -- `analysis.py` makes one more call to the model,
-this time entirely out of character: it's handed the character's own
-persona/system prompt plus the full transcript, and asked to account
-for its own performance as that character -- what it assumed about the
-player going in, how that shifted (or didn't) over the conversation,
-what specific bias or microaggression it can see in its own replies,
-how it handled being pushed back on, what it understands about the
-player now versus at the start, and whether the scene's ending felt
-earned by what actually happened. That reflection, plus some metadata
-(scenario, turn count, how it ended, timestamps), is the actual research
-artifact this project produces.
+player ending it -- the participant is shown a short, optional feedback
+form (overall rating 1-5, how natural/human the AI felt 1-5, free-text
+comments) before returning to the menu. Only once that's submitted (or
+skipped) does `/api/finish` actually call `analysis.py`, which makes
+one more call to the model, entirely out of character: it's handed the
+character's own persona/system prompt plus the full transcript, and
+asked to account for its own performance as that character. This
+produces both written and **numeric, chartable** fields -- not just
+"here's what I think happened":
+
+- what it assumed about the player going in, and how that shifted (or
+  didn't) over the conversation, with a 0-5 `understanding_shift_score`
+- an **emotional profile**: six fixed, named emotions (defensiveness,
+  frustration, calmness, warmth, hostility, openness), each rated 0-5
+  as perceived in the player's responses, captured separately at the
+  *start* and the *end* of the conversation -- so the shift itself is a
+  number, not just a vibe, and comparable across every session
+- specific bias/microaggression the character's own replies showed,
+  with a 0-5 `bias_severity` score
+- how it handled being pushed back on
+- what it understands about the player now versus the start
+- whether the ending felt earned, with a 0-5 `resolution_score`
+
+That reflection, plus the participant's own feedback and some metadata
+(scenario, turn count, how it ended, timestamps), is the actual
+research artifact this project produces -- the model's self-report
+alongside the human's own, on the same record, with enough numeric
+fields per session to build real charts/trends across many sessions
+later rather than only being able to read one at a time.
+
+Records are grouped and numbered **per participant** (by their email
+or ID number, or "unknown" if somehow not provided) rather than by one
+global counter -- so the same person's sessions sit together and
+number 1, 2, 3... within their own folder, making the
+pattern-across-sessions use case direct rather than something to
+reconstruct later.
 
 Persistence is pluggable via environment variables, and more than one
 path can be active at once:
 
 - **Local runs always write a file.** Every record (full analysis,
-  metadata, and the full transcript) is saved as a numbered JSON file
-  under `analysis_logs/` (configurable via `ANALYSIS_LOG_DIR`) -- e.g.
-  `0001_airport-biosecurity_resolved.json`. This directory is
-  gitignored; it's local output, not source.
+  participant info and feedback, metadata, and the full transcript) is
+  saved as a numbered JSON file under `analysis_logs/<participant>/`
+  (configurable via `ANALYSIS_LOG_DIR`) -- e.g.
+  `analysis_logs/jane@example.com/0001_airport-biosecurity_resolved.json`
+  or `analysis_logs/p-014/0001_...json` for an ID-number participant.
+  This directory is gitignored; it's local output, not source.
 - **`GITHUB_DATA_REPO` + `GITHUB_DATA_TOKEN`, if set, commit the record
-  as a numbered Markdown file to a `sessions/` folder in a private
+  as a numbered Markdown file to `sessions/<participant>/` in a private
   GitHub repo** -- the recommended path, and the one actually relied
-  on. Each file has the title, metadata, every analysis section under
-  its own heading, then the full transcript, and renders readably
-  right on github.com. `GITHUB_DATA_REPO` is `owner/repo`; the token is
-  a fine-grained GitHub personal access token scoped to *only* that one
-  repo with Contents: Read and write. This survives Vercel's
-  serverless, no-persistent-disk environment, and setup is just: create
-  a private repo, generate a scoped token, set both as env vars. No
-  OAuth flow, no deployment-settings quirks.
+  on. Each file has the title, participant ID, metadata, every analysis
+  section under its own heading, the participant's own feedback, then
+  the full transcript, and renders readably right on github.com.
+  `GITHUB_DATA_REPO` is `owner/repo`; the token is a fine-grained GitHub
+  personal access token scoped to *only* that one repo with Contents:
+  Read and write. This survives Vercel's serverless, no-persistent-disk
+  environment, and setup is just: create a private repo, generate a
+  scoped token, set both as env vars. No OAuth flow, no
+  deployment-settings quirks.
 - **`SHEETS_WEBHOOK_URL`, if set, additionally posts the record to a
   Google Apps Script Web App** (`deploy/sheets_webhook.gs`) that turns
   it into a formatted Google Doc per session plus an index row in a

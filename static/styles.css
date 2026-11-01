@@ -444,6 +444,36 @@ input {
   cursor: default;
 }
 
+.feedback-box {
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  padding: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.feedback-title {
+  font-size: 1.05rem;
+}
+
+.feedback-intro {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  margin: 0.4rem 0 1rem;
+}
+
+.feedback-comments {
+  resize: vertical;
+  min-height: 4rem;
+}
+
+.feedback-skip {
+  display: block;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
 .chat-form {
   display: flex;
   align-items: flex-end;
