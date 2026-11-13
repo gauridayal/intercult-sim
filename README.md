@@ -182,6 +182,16 @@ turn, not just the first -- specifically so a long conversation doesn't
 erode a rich persona back down into generic chatbot behavior as context
 grows.
 
+Every AI character's system prompt also has an explicit "if the
+current thread goes stale" block -- five concrete, scenario-specific
+things the character can pivot to if the player gives short/compliant
+answers, a topic resolves early, or the same concern has already been
+raised. This exists because real session data showed the opposite
+failure mode: once a short-answering player exhausts the character's
+main material, the model just re-asks the same one or two concerns in
+reworded form rather than surfacing genuinely new, specific ground --
+which reads as repetitive rather than as a character with real depth.
+
 ## Reply length and tone
 
 AI-character replies are meant to read like an actual person talking,
@@ -230,13 +240,18 @@ analysis record a natural ending would (see below), just tagged
 
 Before picking a scenario, the web app asks the real participant for
 their **email or an assigned ID number (used as their identifier),
-name, gender, and age** -- separate from the fictional in-character
+name, gender, age, field of study, and whether they have prior
+intercultural experience** (lived, studied, or worked in a culture
+different from their own) -- separate from the fictional in-character
 player name, and never shown to the AI character. The identifier field
 deliberately accepts either: a plain email for general use, or a
 pre-assigned ID code for group studies that recruit specific known
 participants ahead of time. Either way, it exists so the same person's
 multiple sessions (different scenarios, different days) can be found
-and compared as a set rather than scattered anonymously.
+and compared as a set rather than scattered anonymously. The field of
+study and prior-experience questions exist specifically to give
+research questions about undergraduate students' intercultural
+communication competence and strategies a baseline to analyze against.
 
 When a scene ends -- by resolving, by hitting its turn limit, or by the
 player ending it -- the participant is shown a short, optional feedback

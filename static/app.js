@@ -29,7 +29,14 @@
 
   const state = {
     view: "intake", // 'intake' | 'menu' | 'briefing' | 'chat'
-    participant: { name: "", gender: "", age: "", identifier: "" },
+    participant: {
+      name: "",
+      gender: "",
+      age: "",
+      identifier: "",
+      fieldOfStudy: "",
+      priorInterculturalExperience: "",
+    },
     selected: null,
     messages: [], // {role: 'user'|'assistant', content: string}
     input: "",
@@ -72,11 +79,19 @@
   // ---------- Intake ----------
 
   function intakeComplete() {
-    const { name, gender, age, identifier } = state.participant;
+    const { name, gender, age, identifier, fieldOfStudy, priorInterculturalExperience } =
+      state.participant;
     // Deliberately not restricted to email format -- a group study might
     // assign plain ID numbers/codes to known participants instead.
     return Boolean(
-      name.trim() && gender && age && Number(age) >= 13 && Number(age) <= 120 && identifier.trim()
+      name.trim() &&
+        gender &&
+        age &&
+        Number(age) >= 13 &&
+        Number(age) <= 120 &&
+        identifier.trim() &&
+        fieldOfStudy.trim() &&
+        priorInterculturalExperience
     );
   }
 
@@ -142,6 +157,21 @@
     });
     ageInput.value = state.participant.age;
 
+    const fieldOfStudyInput = el("input", {
+      class: "intake-input",
+      type: "text",
+      autocomplete: "off",
+      placeholder: "e.g. Psychology, Computer Science",
+    });
+    fieldOfStudyInput.value = state.participant.fieldOfStudy;
+
+    const priorExperienceSelect = el("select", { class: "intake-input" }, [
+      el("option", { value: "", text: "Select one" }),
+      el("option", { value: "Yes", text: "Yes" }),
+      el("option", { value: "No", text: "No" }),
+    ]);
+    priorExperienceSelect.value = state.participant.priorInterculturalExperience;
+
     const continueBtn = el("button", {
       type: "submit",
       class: "begin-btn accent-sand-solid",
@@ -168,6 +198,14 @@
       state.participant.age = ageInput.value;
       refreshContinue();
     });
+    fieldOfStudyInput.addEventListener("input", () => {
+      state.participant.fieldOfStudy = fieldOfStudyInput.value;
+      refreshContinue();
+    });
+    priorExperienceSelect.addEventListener("change", () => {
+      state.participant.priorInterculturalExperience = priorExperienceSelect.value;
+      refreshContinue();
+    });
 
     form.appendChild(
       el("label", { class: "intake-label", text: "Email or ID number" }, [identifierInput])
@@ -175,6 +213,19 @@
     form.appendChild(el("label", { class: "intake-label", text: "Name" }, [nameInput]));
     form.appendChild(el("label", { class: "intake-label", text: "Gender" }, [genderSelect]));
     form.appendChild(el("label", { class: "intake-label", text: "Age" }, [ageInput]));
+    form.appendChild(
+      el("label", { class: "intake-label", text: "Field of study" }, [fieldOfStudyInput])
+    );
+    form.appendChild(
+      el(
+        "label",
+        {
+          class: "intake-label",
+          text: "Have you lived, studied, or worked in a culture different from your own before?",
+        },
+        [priorExperienceSelect]
+      )
+    );
     form.appendChild(continueBtn);
 
     wrap.appendChild(form);

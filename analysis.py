@@ -194,6 +194,8 @@ def _render_markdown(record: dict, index: int) -> str:
         "",
         f"- **Participant ID (email / ID number):** {participant_id}",
         f"- **Participant:** {participant_label}",
+        f"- **Field of study:** {participant.get('fieldOfStudy') or '_(not collected)_'}",
+        f"- **Prior intercultural experience:** {participant.get('priorInterculturalExperience') or '_(not collected)_'}",
         f"- **Player character:** {record['player_name']}",
         f"- **AI character:** {ai_label}",
         f"- **Scenario:** `{record['scenario_id']}`",
