@@ -180,7 +180,7 @@
       el("section", { class: "hero" }, [
         el("div", { class: "hero-copy" }, [
           el("p", { class: "eyebrow", text: "Research simulator" }),
-          el("h1", { text: "Practice intercultural communication through live AI roleplay." }),
+          el("h1", { text: "Practice intercultural communication in a virtual intercultural lab." }),
           el("p", {
             class: "hero-text",
             text:
