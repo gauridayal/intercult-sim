@@ -80,8 +80,8 @@ def chat():
 
     reply, ended, limit_reached = process_reply(scenario, turn, raw_reply)
 
-    # Saving is deferred to /api/finish, called once the participant has had
-    # a chance to submit (or skip) their own feedback -- so that feedback
+    # Saving is deferred to /api/finish, called once the participant has
+    # submitted the required exit survey -- so that feedback
     # can be part of the same record instead of a separate, later write.
 
     return jsonify(
@@ -98,8 +98,8 @@ def chat():
 @app.route("/api/finish", methods=["POST"])
 def finish_conversation():
     """Called once, after a scene has ended (resolved, turn limit, or the
-    player ending it themselves) and the participant has submitted or
-    skipped their own feedback. This is where the post-conversation
+    player ending it themselves) and the participant has submitted the
+    exit survey. This is where the post-conversation
     analysis actually gets generated and saved, deferred to here so the
     participant's own feedback lands in the same record as the model's
     self-critique rather than a separate, disconnected write."""

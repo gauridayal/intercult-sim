@@ -2,7 +2,7 @@
 
 Separate from the in-character roleplay entirely: after a scene finishes
 (resolved, hit its turn limit, or the player ended it early) AND the real
-participant has had a chance to submit (or skip) their own feedback, this
+participant has submitted the exit survey, this
 makes one extra, out-of-character call asking the model to look back at its
 own in-character replies and account for how its read of the player shifted,
 what emotion it perceived in the player's responses, and what bias or
@@ -256,16 +256,32 @@ def _render_markdown(record: dict, index: int) -> str:
     lines.append("## Participant feedback")
     lines.append("")
     if feedback:
-        lines.append(f"- **Overall rating (1-5):** {feedback.get('overall_rating', '_(not given)_')}")
-        lines.append(
-            f"- **How natural/human the AI felt (1-5):** {feedback.get('naturalness_rating', '_(not given)_')}"
-        )
+        feedback_fields = [
+            ("Overall rating (1-5)", "overall_rating"),
+            ("How natural/human the AI felt (1-5)", "naturalness_rating"),
+            ("Understood the other person's perspective (1-5)", "perspective_understanding"),
+            ("Identified the cultural/communication issue (1-5)", "cultural_issue_identified"),
+            ("Communicated their own perspective clearly (1-5)", "communicated_perspective"),
+            ("Considered the other person's feelings/expectations (1-5)", "considered_feelings"),
+            ("Scenario challenge (1-5)", "challenge_rating"),
+            ("Chatbot stayed in role", "role_consistency"),
+            ("Inappropriate, stereotypical, or confusing response encountered", "inappropriate_response"),
+        ]
+        for label, key in feedback_fields:
+            lines.append(f"- **{label}:** {feedback.get(key) or '_(not given)_'}")
         lines.append("")
-        lines.append("**Comments:**")
-        lines.append("")
-        lines.append(feedback.get("comments") or "_(none left)_")
+        written_fields = [
+            ("Main communication challenge", "main_challenge"),
+            ("Explanation of inappropriate/confusing response", "inappropriate_response_explanation"),
+            ("Change in communication approach", "approach_change"),
+            ("What they would do differently in real life", "real_life_difference"),
+            ("Other comments", "comments"),
+        ]
+        for label, key in written_fields:
+            if feedback.get(key):
+                lines += [f"**{label}:**", "", feedback[key], ""]
     else:
-        lines.append("_(participant skipped or did not submit feedback)_")
+        lines.append("_(participant feedback was not submitted)_")
     lines.append("")
 
     lines.append("## Transcript")

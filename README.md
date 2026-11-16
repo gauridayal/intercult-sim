@@ -69,14 +69,14 @@ browser UI instead of a terminal -- pastel-themed, no build step
   loop. `quit`/`exit`, the natural end signal, and the turn limit all
   trigger the same post-conversation analysis before returning.
 - `app.py` -- the web frontend: a small Flask app. `GET /` renders the
-  scenario menu (public scenario fields only -- system prompts and end
-  tokens never reach the browser); `POST /api/chat` takes the running
+  research-site UI and simulation catalogue (public scenario fields only
+  -- system prompts and end tokens never reach the browser); `POST /api/chat` takes the running
   message history and returns the next reply, mirroring `engine.py`'s
   turn loop over HTTP instead of stdin/stdout. Ending a scene (naturally,
   by turn limit, or the player choosing to) doesn't save anything by
-  itself -- the frontend shows a short optional feedback form first, and
-  `POST /api/finish` (called once, after that form is submitted or
-  skipped) is what actually produces the analysis record, so the
+  itself -- the frontend shows a required short exit survey first, and
+  `POST /api/finish` (called once after that survey is submitted) is
+  what actually produces the analysis record, so the
   participant's own feedback lands in the same record as the model's.
 - `templates/index.html`, `static/styles.css`, `static/app.js` -- the
   browser UI. Plain HTML/CSS/vanilla JS, no framework or build step --
@@ -254,10 +254,14 @@ research questions about undergraduate students' intercultural
 communication competence and strategies a baseline to analyze against.
 
 When a scene ends -- by resolving, by hitting its turn limit, or by the
-player ending it -- the participant is shown a short, optional feedback
-form (overall rating 1-5, how natural/human the AI felt 1-5, free-text
-comments) before returning to the menu. Only once that's submitted (or
-skipped) does `/api/finish` actually call `analysis.py`, which makes
+player ending it -- the participant is shown a short required exit
+survey before returning to the menu. It captures overall/naturalness
+ratings, selected intercultural-communication reflection items
+(perspective-taking, issue identification, clarity, consideration of the
+other person's expectations, challenge level, role consistency, and
+whether any inappropriate or confusing response appeared), plus a few
+short written reflections. Only once that's submitted does
+`/api/finish` actually call `analysis.py`, which makes
 one more call to the model, entirely out of character: it's handed the
 character's own persona/system prompt plus the full transcript, and
 asked to account for its own performance as that character. This
