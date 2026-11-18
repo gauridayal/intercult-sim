@@ -121,7 +121,7 @@
       el("button", {
         class: "brand",
         type: "button",
-        text: "Intercultural Communication Lab",
+        text: "Virtual Intercultural Lab",
         onclick: () => go("home"),
       }),
       el("nav", { class: "site-nav", "aria-label": "Main navigation" }, [
@@ -179,22 +179,32 @@
     main.appendChild(
       el("section", { class: "hero" }, [
         el("div", { class: "hero-copy" }, [
-          el("p", { class: "eyebrow", text: "Research simulator" }),
-          el("h1", { text: "Practice intercultural communication in a virtual intercultural lab." }),
+          el("p", { class: "eyebrow", text: "Interactive intercultural communication lab" }),
+          el("h1", { text: "Practice Intercultural Communication in a Realistically Designed AI Simulation" }),
           el("p", {
             class: "hero-text",
             text:
-              "Choose a scenario, respond naturally, and help us study how people navigate misunderstanding, bias, repair, and perspective-taking in realistic conversations.",
+              "Every conversation is a different perspective. Step into carefully designed scenarios, respond naturally, and reflect on how meaning, assumptions, and communication choices shift across contexts.",
           }),
           el("div", { class: "hero-actions" }, [
-            el("button", { class: "primary-btn", type: "button", text: "Browse simulations", onclick: () => go("simulations") }),
-            el("button", { class: "secondary-btn", type: "button", text: "Participant details", onclick: () => go("intake") }),
+            el("button", { class: "primary-btn", type: "button", text: "Enter the Lab", onclick: () => go("simulations") }),
+            el("button", { class: "secondary-btn", type: "button", text: "Participant Details", onclick: () => go("intake") }),
           ]),
         ]),
         el("div", { class: "hero-panel" }, [
-          stat("10", "scenario modules"),
-          stat("9", "international contexts"),
-          stat("5-8 min", "typical session"),
+          stat("Talk", "respond in your own words"),
+          stat("Interpret", "notice assumptions and signals"),
+          stat("Reflect", "capture what shifted"),
+        ]),
+      ])
+    );
+    main.appendChild(
+      el("section", { class: "spotlight-band" }, [
+        el("p", { class: "eyebrow", text: "Inside the lab" }),
+        el("div", { class: "spotlight-grid" }, [
+          spotlight("Perspective", "See how the same moment can be read differently by different people."),
+          spotlight("Misunderstanding", "Practice repairing tension, silence, directness, or unexpected assumptions."),
+          spotlight("Choice", "Experiment with tone, clarification, empathy, and disagreement in a low-risk space."),
         ]),
       ])
     );
@@ -202,12 +212,25 @@
       el("section", { class: "content-band" }, [
         el("div", { class: "section-heading" }, [
           el("p", { class: "eyebrow", text: "How it works" }),
-          el("h2", { text: "A research-first simulation, not a quiz." }),
+          el("h2", { text: "There are no perfect responses. The goal is to explore." }),
         ]),
         el("div", { class: "feature-grid" }, [
-          feature("Choose a context", "Search by country, setting, or scenario focus before entering the roleplay."),
+          feature("Choose a context", "Search by country, setting, or scenario focus before entering a simulation."),
           feature("Respond freely", "There are no multiple-choice answers. The conversation adapts to what you actually write."),
           feature("Reflect after", "A short required exit survey captures your strategy, confidence, and perception of the exchange."),
+        ]),
+      ])
+    );
+    main.appendChild(
+      el("section", { class: "reflection-band" }, [
+        el("div", {}, [
+          el("p", { class: "eyebrow", text: "Reflection" }),
+          el("h2", { text: "The conversation ends. The learning begins." }),
+        ]),
+        el("div", { class: "prompt-list" }, [
+          el("span", { text: "What assumptions did I make?" }),
+          el("span", { text: "Where did the conversation shift?" }),
+          el("span", { text: "What would I try differently?" }),
         ]),
       ])
     );
@@ -222,19 +245,24 @@
     return el("article", { class: "feature" }, [el("h3", { text: title }), el("p", { text: body })]);
   }
 
+  function spotlight(title, body) {
+    return el("article", { class: "spotlight-card" }, [el("h2", { text: title }), el("p", { text: body })]);
+  }
+
   function renderAbout() {
     return el("main", { class: "page narrow-page" }, [
+      backButton("Back", () => go("home")),
       el("p", { class: "eyebrow", text: "About the study" }),
       el("h1", { class: "page-title", text: "What this simulator records" }),
       el("p", {
         class: "page-intro",
         text:
-          "Each session stores the transcript, basic participant details, your exit survey, and a model-generated analysis of the roleplay. Your email or assigned ID is used to group repeated sessions by the same participant.",
+          "Each session keeps the transcript, basic participant details, your exit survey, and a model-generated analysis for research review. Your email or assigned ID is used only to group repeated sessions by the same participant.",
       }),
       el("div", { class: "info-list" }, [
         infoRow("Participant control", "You may use an email or assigned ID number, depending on how your study group is organized."),
         infoRow("Scenario design", "Every scene places an Indian participant character in a specific cross-cultural or intra-cultural communication challenge."),
-        infoRow("Data storage", "Finished sessions are saved to the configured private GitHub data repository for later analysis."),
+        infoRow("Data storage", "Finished sessions are kept privately and safely for later research analysis. They are not shown to other participants, and they are used only to understand communication patterns across sessions."),
       ]),
     ]);
   }
@@ -245,6 +273,7 @@
 
   function renderSimulations() {
     const main = el("main", { class: "page catalogue-page" });
+    main.appendChild(backButton("Back", () => go("home")));
     main.appendChild(
       el("div", { class: "section-heading catalogue-heading" }, [
         el("div", {}, [
@@ -356,6 +385,7 @@
 
   function renderIntake() {
     const main = el("main", { class: "page narrow-page" });
+    main.appendChild(backButton("Back", () => go(state.selected ? "simulations" : "home")));
     main.appendChild(el("p", { class: "eyebrow", text: "Participant record" }));
     main.appendChild(el("h1", { class: "page-title", text: "Before the simulation" }));
     main.appendChild(
@@ -424,11 +454,15 @@
     return el("label", { class: "field-label", text: label }, [control]);
   }
 
+  function backButton(label, onClick) {
+    return el("button", { class: "back-btn", type: "button", text: `← ${label}`, onclick: onClick });
+  }
+
   function renderBriefing() {
     const scenario = state.selected;
     const meta = metaFor(scenario);
     return el("main", { class: "page narrow-page" }, [
-      el("button", { class: "text-btn", type: "button", text: "< All simulations", onclick: () => go("simulations") }),
+      backButton("All simulations", () => go("simulations")),
       el("p", { class: "eyebrow spaced", text: meta.theme }),
       el("h1", { class: "page-title", text: scenario.title }),
       el("p", { class: "scenario-location", text: scenario.location }),
