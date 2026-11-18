@@ -271,8 +271,49 @@ h3 {
   margin-top: 2rem;
 }
 
+.metrics-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: -0.75rem;
+}
+
+.metric-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  box-shadow: 0 1px 0 rgba(37, 54, 75, 0.03);
+  padding: 1rem;
+}
+
+.metric-card strong {
+  color: var(--navy);
+  display: block;
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  line-height: 1;
+}
+
+.metric-card span {
+  color: var(--ink);
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 800;
+  margin-top: 0.4rem;
+}
+
+.metric-card p {
+  color: var(--ink-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin-top: 0.4rem;
+}
+
 .spotlight-band,
-.reflection-band {
+.reflection-band,
+.preview-band,
+.question-band,
+.reflection-hero {
   background:
     linear-gradient(135deg, rgba(47, 95, 143, 0.08), transparent),
     var(--surface);
@@ -281,6 +322,47 @@ h3 {
   box-shadow: var(--soft-shadow);
   margin-top: 0.75rem;
   padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.preview-band {
+  margin-top: 1rem;
+}
+
+.mini-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1.25rem;
+}
+
+.mini-scenario-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  color: inherit;
+  min-height: 10rem;
+  padding: 1rem;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.mini-scenario-card:hover {
+  border-color: rgba(47, 95, 143, 0.55);
+  box-shadow: var(--soft-shadow);
+  transform: translateY(-2px);
+}
+
+.mini-scenario-card h3 {
+  color: var(--navy);
+  font-size: 1.05rem;
+  margin-top: 1rem;
+}
+
+.mini-scenario-card p {
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin-top: 0.45rem;
 }
 
 .spotlight-grid {
@@ -334,6 +416,8 @@ h3 {
 .feature,
 .info-row,
 .persona-card,
+.persona-profile-card,
+.insight-card,
 .feedback-panel,
 .form-panel {
   background: var(--surface);
@@ -362,7 +446,9 @@ h3 {
 
 .feature h3,
 .info-row h2,
-.persona-card h2 {
+.persona-card h2,
+.persona-profile-card h2,
+.insight-card h2 {
   color: var(--navy);
   font-size: 1.1rem;
 }
@@ -370,6 +456,8 @@ h3 {
 .feature p,
 .info-row p,
 .persona-card p,
+.persona-profile-card p,
+.insight-card p,
 .briefing-text {
   color: var(--ink-muted);
   line-height: 1.65;
@@ -392,6 +480,37 @@ h3 {
 
 .info-row p {
   margin-top: 0.45rem;
+}
+
+.persona-directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.persona-profile-card {
+  padding: 1.25rem;
+}
+
+.persona-profile-card h2 {
+  font-size: 1.3rem;
+  margin-top: 1.1rem;
+}
+
+.persona-profile-card .profile-focus {
+  color: var(--copper);
+  font-size: 0.88rem;
+  font-weight: 800;
+  margin-top: 0.35rem;
+}
+
+.persona-profile-card p:not(.profile-focus) {
+  margin-top: 0.75rem;
+}
+
+.persona-profile-card .text-btn {
+  margin-top: 1rem;
 }
 
 .catalogue-heading {
@@ -765,6 +884,56 @@ h3 {
   line-height: 1.55;
 }
 
+.reflection-hero {
+  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.42fr);
+  gap: 1.5rem;
+}
+
+.reflection-note {
+  background: var(--navy);
+  border-radius: 0.6rem;
+  color: white;
+  padding: 1.25rem;
+}
+
+.reflection-note strong {
+  display: block;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.35rem;
+}
+
+.reflection-note p {
+  color: rgba(255, 255, 255, 0.76);
+  line-height: 1.55;
+  margin-top: 0.5rem;
+}
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.insight-card {
+  padding: 1.15rem;
+}
+
+.insight-card h2 {
+  font-size: 1.05rem;
+}
+
+.insight-card p {
+  font-size: 0.9rem;
+  margin-top: 0.55rem;
+}
+
+.question-band {
+  margin-top: 1rem;
+}
+
 .reflection-band {
   align-items: center;
   display: grid;
@@ -784,6 +953,11 @@ h3 {
   flex-wrap: wrap;
   gap: 0.6rem;
   justify-content: flex-end;
+}
+
+.prompt-list.left {
+  justify-content: flex-start;
+  margin-top: 1rem;
 }
 
 .prompt-list span {
@@ -811,9 +985,14 @@ h3 {
   .hero,
   .feature-grid,
   .spotlight-grid,
+  .metrics-strip,
+  .mini-scenario-grid,
+  .persona-directory,
+  .insight-grid,
   .scenario-grid,
   .persona-grid,
   .filters,
+  .reflection-hero,
   .reflection-band {
     grid-template-columns: 1fr;
   }

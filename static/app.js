@@ -109,6 +109,9 @@
     shell.appendChild(renderHeader());
     if (state.view === "home") shell.appendChild(renderHome());
     else if (state.view === "simulations") shell.appendChild(renderSimulations());
+    else if (state.view === "personas") shell.appendChild(renderPersonas());
+    else if (state.view === "reflection") shell.appendChild(renderReflection());
+    else if (state.view === "privacy") shell.appendChild(renderPrivacy());
     else if (state.view === "about") shell.appendChild(renderAbout());
     else if (state.view === "intake") shell.appendChild(renderIntake());
     else if (state.view === "briefing") shell.appendChild(renderBriefing());
@@ -127,6 +130,9 @@
       el("nav", { class: "site-nav", "aria-label": "Main navigation" }, [
         navButton("Home", "home"),
         navButton("Simulations", "simulations"),
+        navButton("Personas", "personas"),
+        navButton("Reflection", "reflection"),
+        navButton("Ethics & Privacy", "privacy"),
         navButton("Participant Details", "intake"),
         navButton("About", "about"),
       ]),
@@ -199,6 +205,14 @@
       ])
     );
     main.appendChild(
+      el("section", { class: "metrics-strip", "aria-label": "Lab snapshot" }, [
+        metric(`${scenarios.length}`, "scenario modules", "each built around a specific communication challenge"),
+        metric(`${countries().length}`, "countries represented", "across international and intra-India encounters"),
+        metric("5-8 min", "typical session", "brief enough to complete, rich enough to reflect on"),
+        metric("0", "multiple-choice turns", "participants write what they would actually say"),
+      ])
+    );
+    main.appendChild(
       el("section", { class: "spotlight-band" }, [
         el("p", { class: "eyebrow", text: "Inside the lab" }),
         el("div", { class: "spotlight-grid" }, [
@@ -206,6 +220,22 @@
           spotlight("Misunderstanding", "Practice repairing tension, silence, directness, or unexpected assumptions."),
           spotlight("Choice", "Experiment with tone, clarification, empathy, and disagreement in a low-risk space."),
         ]),
+      ])
+    );
+    main.appendChild(
+      el("section", { class: "preview-band" }, [
+        el("div", { class: "section-heading" }, [
+          el("div", {}, [
+            el("p", { class: "eyebrow", text: "Meet the situations" }),
+            el("h2", { text: "Every module has a different kind of tension." }),
+          ]),
+          el("button", { class: "secondary-btn", type: "button", text: "See all simulations", onclick: () => go("simulations") }),
+        ]),
+        el(
+          "div",
+          { class: "mini-scenario-grid" },
+          scenarios.slice(0, 4).map((scenario) => miniScenarioCard(scenario))
+        ),
       ])
     );
     main.appendChild(
@@ -237,6 +267,14 @@
     return main;
   }
 
+  function metric(value, label, detail) {
+    return el("article", { class: "metric-card" }, [
+      el("strong", { text: value }),
+      el("span", { text: label }),
+      el("p", { text: detail }),
+    ]);
+  }
+
   function stat(value, label) {
     return el("div", { class: "stat" }, [el("strong", { text: value }), el("span", { text: label })]);
   }
@@ -247,6 +285,104 @@
 
   function spotlight(title, body) {
     return el("article", { class: "spotlight-card" }, [el("h2", { text: title }), el("p", { text: body })]);
+  }
+
+  function miniScenarioCard(scenario) {
+    const meta = metaFor(scenario);
+    return el("button", { class: "mini-scenario-card", type: "button", onclick: () => selectScenario(scenario) }, [
+      el("span", { class: "pill", text: meta.theme }),
+      el("h3", { text: scenario.title }),
+      el("p", { text: meta.focus }),
+    ]);
+  }
+
+  function renderPersonas() {
+    return el("main", { class: "page" }, [
+      backButton("Back", () => go("home")),
+      el("div", { class: "section-heading catalogue-heading" }, [
+        el("div", {}, [
+          el("p", { class: "eyebrow", text: "Conversation partners" }),
+          el("h1", { class: "page-title", text: "Meet the personas inside the simulations" }),
+        ]),
+        el("p", {
+          class: "page-intro compact",
+          text:
+            "These are individual characters with specific histories, habits, and blind spots. They are not meant to stand in for entire countries or communities.",
+        }),
+      ]),
+      el("div", { class: "persona-directory" }, scenarios.map((scenario) => personaProfileCard(scenario))),
+    ]);
+  }
+
+  function personaProfileCard(scenario) {
+    const meta = metaFor(scenario);
+    const person = scenario.ai_character;
+    return el("article", { class: "persona-profile-card" }, [
+      el("div", { class: "card-topline" }, [el("span", { class: "pill", text: meta.theme }), flagChip(person)]),
+      el("h2", { text: person.name }),
+      el("p", { class: "profile-focus", text: meta.focus }),
+      el("p", { text: person.bio }),
+      el("button", { class: "text-btn", type: "button", text: "Open scenario", onclick: () => selectScenario(scenario) }),
+    ]);
+  }
+
+  function renderReflection() {
+    return el("main", { class: "page" }, [
+      backButton("Back", () => go("home")),
+      el("section", { class: "reflection-hero" }, [
+        el("div", {}, [
+          el("p", { class: "eyebrow", text: "Reflection and insight" }),
+          el("h1", { class: "page-title", text: "The lab is designed to make communication choices visible." }),
+          el("p", {
+            class: "page-intro",
+            text:
+              "After each simulation, participants complete a short exit survey. The goal is not to grade anyone, but to understand how they interpreted the exchange, adapted their strategy, and noticed misunderstanding or bias.",
+          }),
+        ]),
+        el("div", { class: "reflection-note" }, [
+          el("strong", { text: "No perfect answer" }),
+          el("p", { text: "The useful data is often in the hesitation, repair, clarification, or change in approach." }),
+        ]),
+      ]),
+      el("div", { class: "insight-grid" }, [
+        insightCard("Perspective-taking", "Did the participant understand what the other person seemed to value or fear?"),
+        insightCard("Issue recognition", "Could they identify the cultural, social, or communication issue underneath the surface conflict?"),
+        insightCard("Strategy shift", "Did they adapt tone, ask clarifying questions, explain context, or seek common ground?"),
+        insightCard("Real-world transfer", "What would they do differently if a similar moment happened outside the lab?"),
+      ]),
+      el("section", { class: "question-band" }, [
+        el("p", { class: "eyebrow", text: "Sample reflection prompts" }),
+        el("div", { class: "prompt-list left" }, [
+          el("span", { text: "What was difficult to interpret?" }),
+          el("span", { text: "Did I feel misunderstood?" }),
+          el("span", { text: "Did I change my approach?" }),
+          el("span", { text: "What response would I try next time?" }),
+        ]),
+      ]),
+    ]);
+  }
+
+  function insightCard(title, body) {
+    return el("article", { class: "insight-card" }, [el("h2", { text: title }), el("p", { text: body })]);
+  }
+
+  function renderPrivacy() {
+    return el("main", { class: "page narrow-page" }, [
+      backButton("Back", () => go("home")),
+      el("p", { class: "eyebrow", text: "Ethics and privacy" }),
+      el("h1", { class: "page-title", text: "Use the lab with curiosity, not certainty." }),
+      el("p", {
+        class: "page-intro",
+        text:
+          "The lab uses AI-generated characters for research and learning. The scenarios are designed to invite reflection, not to define any culture, nationality, or community.",
+      }),
+      el("div", { class: "info-list" }, [
+        infoRow("AI disclosure", "Participants are interacting with AI-generated conversational personas, not real people."),
+        infoRow("Simulation limits", "A persona may reflect an individual character's assumptions or bias, but should not be treated as a universal representation of a country or group."),
+        infoRow("Private research records", "Finished sessions are kept privately and safely for research review. They are used to compare communication patterns, not to publicly identify participants."),
+        infoRow("Participant identifiers", "An email or assigned ID can be used so repeated sessions by the same participant can be grouped during later analysis."),
+      ]),
+    ]);
   }
 
   function renderAbout() {
