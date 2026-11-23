@@ -124,7 +124,7 @@
       el("button", {
         class: "brand",
         type: "button",
-        text: "Virtual Intercultural Lab",
+        text: "Virtual Intercultural Communication Lab",
         onclick: () => go("home"),
       }),
       el("nav", { class: "site-nav", "aria-label": "Main navigation" }, [
@@ -185,12 +185,11 @@
     main.appendChild(
       el("section", { class: "hero" }, [
         el("div", { class: "hero-copy" }, [
-          el("p", { class: "eyebrow", text: "Interactive intercultural communication lab" }),
           el("h1", { text: "Practice Intercultural Communication in a Realistically Designed AI Simulation" }),
           el("p", {
             class: "hero-text",
             text:
-              "Every conversation is a different perspective. Step into carefully designed scenarios, respond naturally, and reflect on how meaning, assumptions, and communication choices shift across contexts.",
+              "A virtual research and learning space for exploring how language, culture, identity, and emerging technologies shape human communication across contexts.",
           }),
           el("div", { class: "hero-actions" }, [
             el("button", { class: "primary-btn", type: "button", text: "Enter the Lab", onclick: () => go("simulations") }),
@@ -214,11 +213,11 @@
     );
     main.appendChild(
       el("section", { class: "spotlight-band" }, [
-        el("p", { class: "eyebrow", text: "Inside the lab" }),
+        el("p", { class: "eyebrow", text: "Research areas" }),
         el("div", { class: "spotlight-grid" }, [
-          spotlight("Perspective", "See how the same moment can be read differently by different people."),
-          spotlight("Misunderstanding", "Practice repairing tension, silence, directness, or unexpected assumptions."),
-          spotlight("Choice", "Experiment with tone, clarification, empathy, and disagreement in a low-risk space."),
+          spotlight("Immersive Pedagogy", "Study how simulated interaction can support language learning, reflection, and communication practice."),
+          spotlight("Intercultural Communication", "Explore how people navigate identity, assumptions, disagreement, and meaning in virtual environments."),
+          spotlight("AI and Digital Humanities", "Examine how AI-assisted systems can support multilingual literacy, cultural inquiry, and research-driven design."),
         ]),
       ])
     );
@@ -247,7 +246,7 @@
         el("div", { class: "feature-grid" }, [
           feature("Choose a context", "Search by country, setting, or scenario focus before entering a simulation."),
           feature("Respond freely", "There are no multiple-choice answers. The conversation adapts to what you actually write."),
-          feature("Reflect after", "A short required exit survey captures your strategy, confidence, and perception of the exchange."),
+          feature("Reflect after", "A short exit survey captures your strategy, confidence, and perception of the exchange for research review."),
         ]),
       ])
     );
