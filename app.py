@@ -25,10 +25,6 @@ except ImportError:
 
 app = Flask(__name__)
 
-_client = get_client()
-_model = get_model()
-
-
 def public_scenario(scenario: dict) -> dict:
     """Strip fields the browser has no business seeing -- the system prompt
     and persona anchor that govern the AI character, and the token that
@@ -70,11 +66,14 @@ def chat():
     if turn < 1:
         return jsonify({"error": "History must include at least one user message"}), 400
 
+    if not os.environ.get("OPENAI_API_KEY") and not os.environ.get("OPENAI_API_BASE_URL"):
+        return jsonify({"error": "OPENAI_API_KEY is not configured for this deployment."}), 502
+
     system_prompt = build_system_prompt(scenario, turn)
     clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
 
     try:
-        raw_reply = generate_reply(_client, _model, system_prompt, clean_history)
+        raw_reply = generate_reply(get_client(), get_model(), system_prompt, clean_history)
     except Exception as exc:  # noqa: BLE001 -- surface any backend error to the client
         return jsonify({"error": str(exc)}), 502
 
@@ -126,8 +125,8 @@ def finish_conversation():
         return jsonify({"error": "History must include at least one user message"}), 400
 
     record_and_save(
-        _client,
-        _model,
+        get_client(),
+        get_model(),
         scenario,
         clean_history,
         ended_reason=ended_reason,
