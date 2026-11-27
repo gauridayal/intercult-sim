@@ -17,6 +17,24 @@
     "bamboo-ceiling": { theme: "Workplace", focus: "Promotion bias", intensity: "High" },
   };
 
+  const ALLOWED_EMAIL_DOMAINS = new Set([
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "yahoo.co.in",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "icloud.com",
+    "proton.me",
+    "protonmail.com",
+    "mahindrauniversity.edu.in",
+  ]);
+
+  const ORGANISATION_EMAIL_SUFFIXES = [".edu", ".edu.in", ".ac.in", ".org", ".org.in"];
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const ID_NUMBER_PATTERN = /^[A-Za-z]{2}\d{2}[A-Za-z]{4}\d{3}$/;
+
   const state = {
     view: "home",
     query: "",
@@ -28,6 +46,8 @@
       gender: "",
       age: "",
       identifier: "",
+      email: "",
+      idNumber: "",
       fieldOfStudy: "",
       priorInterculturalExperience: "",
     },
@@ -155,17 +175,35 @@
   }
 
   function participantComplete() {
-    const { name, gender, age, identifier, fieldOfStudy, priorInterculturalExperience } = state.participant;
+    const { name, gender, age, email, idNumber, fieldOfStudy, priorInterculturalExperience } = state.participant;
     return Boolean(
       name.trim() &&
         gender &&
         age &&
         Number(age) >= 13 &&
         Number(age) <= 120 &&
-        identifier.trim() &&
+        validEmail(email) &&
+        validIdNumber(idNumber) &&
         fieldOfStudy.trim() &&
         priorInterculturalExperience
     );
+  }
+
+  function validEmail(value) {
+    const email = value.trim().toLowerCase();
+    if (!EMAIL_PATTERN.test(email)) return false;
+    const domain = email.split("@").pop();
+    return ALLOWED_EMAIL_DOMAINS.has(domain) || ORGANISATION_EMAIL_SUFFIXES.some((suffix) => domain.endsWith(suffix));
+  }
+
+  function validIdNumber(value) {
+    return ID_NUMBER_PATTERN.test(value.trim());
+  }
+
+  function syncIdentifier() {
+    const idNumber = state.participant.idNumber.trim().toUpperCase();
+    const email = state.participant.email.trim().toLowerCase();
+    state.participant.identifier = idNumber || email;
   }
 
   function selectScenario(scenario) {
@@ -379,7 +417,7 @@
         infoRow("AI disclosure", "Participants are interacting with AI-generated conversational personas, not real people."),
         infoRow("Simulation limits", "A persona may reflect an individual character's assumptions or bias, but should not be treated as a universal representation of a country or group."),
         infoRow("Private research records", "Finished sessions are kept privately and safely for research review. They are used to compare communication patterns, not to publicly identify participants."),
-        infoRow("Participant identifiers", "An email or assigned ID can be used so repeated sessions by the same participant can be grouped during later analysis."),
+        infoRow("Participant identifiers", "Email and assigned ID number are collected so repeated sessions by the same participant can be grouped during later analysis."),
       ]),
     ]);
   }
@@ -392,10 +430,10 @@
       el("p", {
         class: "page-intro",
         text:
-          "Each session keeps the transcript, basic participant details, your exit survey, and a model-generated analysis for research review. Your email or assigned ID is used only to group repeated sessions by the same participant.",
+          "Each session keeps the transcript, basic participant details, your exit survey, and a model-generated analysis for research review. Your email and assigned ID number are used only to group repeated sessions by the same participant.",
       }),
       el("div", { class: "info-list" }, [
-        infoRow("Participant control", "You may use an email or assigned ID number, depending on how your study group is organized."),
+        infoRow("Participant control", "Your email and assigned ID number are stored with the session so study records can be matched accurately."),
         infoRow("Scenario design", "Every scene places an Indian participant character in a specific cross-cultural or intra-cultural communication challenge."),
         infoRow("Data storage", "Finished sessions are kept privately and safely for later research analysis. They are not shown to other participants, and they are used only to understand communication patterns across sessions."),
       ]),
@@ -527,7 +565,7 @@
       el("p", {
         class: "page-intro",
         text:
-          "These details are about you, not the character you will play. The AI character will not see them. Your email or assigned ID groups your sessions for later analysis.",
+          "These details are about you, not the character you will play. The AI character will not see them. Your email and assigned ID group your sessions for later analysis.",
       })
     );
     const form = el("form", {
@@ -540,14 +578,23 @@
       },
     });
     const controls = [
-      ["Email or ID number", inputField("text", "you@example.com or assigned ID", "identifier")],
+      [
+        "Email address",
+        inputField("email", "you@gmail.com or name@mahindrauniversity.edu.in", "email", { autocomplete: "email" }),
+        "Use a common email provider, an education/organisation email, or Mahindra University email.",
+      ],
+      [
+        "ID number",
+        inputField("text", "AB12CDEF345", "idNumber", { maxlength: "11" }),
+        "Format: 2 letters, 2 numbers, 4 letters, 3 numbers.",
+      ],
       ["Name", inputField("text", "Your name", "name")],
       ["Gender", choiceField(["", "Male", "Female", "Non-binary", "Prefer not to say"], "gender")],
       ["Age", inputField("number", "Your age", "age", { min: "13", max: "120" })],
       ["Field of study", inputField("text", "e.g. Psychology, Computer Science", "fieldOfStudy")],
       ["Have you lived, studied, or worked in a culture different from your own?", choiceField(["", "Yes", "No"], "priorInterculturalExperience")],
     ];
-    for (const [label, control] of controls) form.appendChild(labelWrap(label, control));
+    for (const [label, control, helper] of controls) form.appendChild(labelWrap(label, control, helper));
     const submit = el("button", {
       class: "primary-btn full-width",
       type: "submit",
@@ -570,7 +617,9 @@
     const input = el("input", { class: "form-control", type, placeholder, autocomplete: "off", ...(extraAttrs || {}) });
     input.value = state.participant[key];
     input.addEventListener("input", () => {
-      state.participant[key] = input.value;
+      state.participant[key] = key === "idNumber" ? input.value.toUpperCase().replace(/\s/g, "") : input.value;
+      if (key === "email" || key === "idNumber") syncIdentifier();
+      input.value = state.participant[key];
     });
     return input;
   }
@@ -585,8 +634,10 @@
     return select;
   }
 
-  function labelWrap(label, control) {
-    return el("label", { class: "field-label", text: label }, [control]);
+  function labelWrap(label, control, helper) {
+    const children = [control];
+    if (helper) children.push(el("span", { class: "field-help", text: helper }));
+    return el("label", { class: "field-label", text: label }, children);
   }
 
   function backButton(label, onClick) {
@@ -661,12 +712,6 @@
           el("p", { class: "chat-title", text: scenario.title }),
           el("p", { class: "chat-subtitle", text: scenario.location }),
         ]),
-        el("button", {
-          class: "text-btn",
-          type: "button",
-          text: hasReplied ? "End" : "Leave",
-          onclick: hasReplied ? endConversation : resetConversation,
-        }),
       ])
     );
     const log = el("section", { class: "chat-log", id: "chat-log", "aria-live": "polite" });
@@ -684,8 +729,17 @@
         ])
       );
     }
-    if (!conversationOver && hasReplied) {
-      main.appendChild(el("div", { class: "end-row" }, [el("button", { class: "secondary-btn small", type: "button", text: "End conversation", onclick: endConversation })]));
+    if (!conversationOver) {
+      main.appendChild(
+        el("div", { class: "end-row" }, [
+          el("button", {
+            class: "secondary-btn small",
+            type: "button",
+            text: hasReplied ? "End conversation" : "Leave simulation",
+            onclick: hasReplied ? endConversation : resetConversation,
+          }),
+        ])
+      );
     }
     main.appendChild(renderChatForm(inputDisabled(conversationOver)));
     queueMicrotask(() => {

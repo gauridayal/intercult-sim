@@ -4,11 +4,16 @@ or interprets its reply directly -- they both go through here."""
 
 
 MAX_REPLY_CHARS = 1200
+MAX_TURNS_CAP = 15
+
+
+def effective_max_turns(scenario: dict) -> int:
+    return min(int(scenario["max_turns"]), MAX_TURNS_CAP)
 
 
 def build_system_prompt(scenario: dict, turn: int) -> str:
     base = scenario["system_prompt"]
-    max_turns = scenario["max_turns"]
+    max_turns = effective_max_turns(scenario)
     min_turns = scenario["min_turns"]
     if turn >= min_turns:
         pacing = (
@@ -80,5 +85,5 @@ def process_reply(scenario: dict, turn: int, raw_reply: str) -> tuple[str, bool,
     end_signal = scenario["end_signal"]
     ended = end_signal in raw_reply and turn >= scenario["min_turns"]
     cleaned = trim_reply(raw_reply.replace(end_signal, "").strip())
-    limit_reached = not ended and turn >= scenario["max_turns"]
+    limit_reached = not ended and turn >= effective_max_turns(scenario)
     return cleaned, ended, limit_reached

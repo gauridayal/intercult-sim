@@ -8,12 +8,13 @@ loop) differs. See conversation.py for the shared turn-processing logic.
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 from flask import Flask, jsonify, render_template, request
 
 from analysis import record_and_save
-from conversation import build_system_prompt, process_reply
+from conversation import build_system_prompt, effective_max_turns, process_reply
 from llm import generate_reply, get_client, get_model
 from scenarios.loader import load_scenarios
 
@@ -25,15 +26,34 @@ except ImportError:
 
 app = Flask(__name__)
 
+ALLOWED_EMAIL_DOMAINS = {
+    "gmail.com",
+    "googlemail.com",
+    "yahoo.com",
+    "yahoo.co.in",
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "icloud.com",
+    "proton.me",
+    "protonmail.com",
+    "mahindrauniversity.edu.in",
+}
+ORGANISATION_EMAIL_SUFFIXES = (".edu", ".edu.in", ".ac.in", ".org", ".org.in")
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+ID_NUMBER_RE = re.compile(r"^[A-Za-z]{2}\d{2}[A-Za-z]{4}\d{3}$")
+
 def public_scenario(scenario: dict) -> dict:
     """Strip fields the browser has no business seeing -- the system prompt
     and persona anchor that govern the AI character, and the token that
     ends the scene."""
-    return {
+    public = {
         k: v
         for k, v in scenario.items()
         if k not in ("system_prompt", "end_signal", "persona_anchor")
     }
+    public["max_turns"] = effective_max_turns(scenario)
+    return public
 
 
 def get_scenario_or_none(scenario_id: str) -> dict | None:
@@ -41,6 +61,17 @@ def get_scenario_or_none(scenario_id: str) -> dict | None:
         if s["id"] == scenario_id:
             return s
     return None
+
+
+def valid_participant(participant: dict | None) -> bool:
+    if not isinstance(participant, dict):
+        return False
+    email = str(participant.get("email") or "").strip().lower()
+    id_number = str(participant.get("idNumber") or "").strip()
+    if not EMAIL_RE.match(email) or not ID_NUMBER_RE.match(id_number):
+        return False
+    domain = email.rsplit("@", 1)[-1]
+    return domain in ALLOWED_EMAIL_DOMAINS or domain.endswith(ORGANISATION_EMAIL_SUFFIXES)
 
 
 @app.route("/")
@@ -89,7 +120,7 @@ def chat():
             "ended": ended,
             "limitReached": limit_reached,
             "turn": turn,
-            "maxTurns": scenario["max_turns"],
+            "maxTurns": effective_max_turns(scenario),
         }
     )
 
@@ -120,6 +151,10 @@ def finish_conversation():
     if scenario is None:
         return jsonify({"error": "Unknown scenario"}), 404
 
+    participant = body.get("participant")
+    if not valid_participant(participant):
+        return jsonify({"error": "A valid email address and ID number are required."}), 400
+
     clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
     if not any(m["role"] == "user" for m in clean_history):
         return jsonify({"error": "History must include at least one user message"}), 400
@@ -131,7 +166,7 @@ def finish_conversation():
         clean_history,
         ended_reason=ended_reason,
         started_at=body.get("startedAt") or datetime.now(timezone.utc).isoformat(),
-        participant=body.get("participant"),
+        participant=participant,
         feedback=body.get("feedback"),
     )
 

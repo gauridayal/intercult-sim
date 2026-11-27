@@ -10,8 +10,8 @@ stereotyping it can see in its own replies. That reflection, plus the
 participant's own feedback, is the actual research artifact; the roleplay is
 just what produces it.
 
-Records are grouped and numbered PER PARTICIPANT (keyed by the email or ID
-number they gave at intake, or "unknown" if none was collected) rather than
+Records are grouped and numbered PER PARTICIPANT (keyed by the assigned ID
+number they gave at intake, falling back to email or "unknown") rather than
 by a single global counter -- so the same person's sessions across different
 scenarios sit together and number 1, 2, 3... within their own folder, making
 it possible to trace one person's pattern across multiple tests. Using an ID
@@ -150,11 +150,11 @@ def generate_analysis(client, model: str, scenario: dict, history: list[dict]) -
 
 
 def _participant_folder_key(participant: dict | None) -> str:
-    """The folder/grouping key for a participant -- their self-reported
-    identifier (an email, or a plain ID number/code for group studies that
-    assign IDs instead), lightly sanitized for filesystem/URL safety, or
-    "unknown" if none was given."""
-    identifier = (participant or {}).get("identifier", "")
+    """The folder/grouping key for a participant, lightly sanitized for
+    filesystem/URL safety. New web records prefer the assigned ID number;
+    older records may only have the legacy identifier field."""
+    participant = participant or {}
+    identifier = participant.get("idNumber") or participant.get("identifier") or participant.get("email") or ""
     identifier = str(identifier).strip().lower()
     if not identifier:
         return "unknown"
@@ -184,7 +184,8 @@ def _render_markdown(record: dict, index: int) -> str:
         ai_label += f" ({record['ai_character_country']})"
 
     participant = record.get("participant") or {}
-    participant_id = participant.get("identifier") or "_(not provided)_"
+    participant_id = participant.get("idNumber") or participant.get("identifier") or "_(not provided)_"
+    participant_email = participant.get("email") or "_(not provided)_"
     participant_label = ", ".join(
         str(v) for v in (participant.get("name"), participant.get("gender"), participant.get("age")) if v
     ) or "_(not collected)_"
@@ -192,7 +193,8 @@ def _render_markdown(record: dict, index: int) -> str:
     lines = [
         f"# Session {index} -- {record['scenario_title']}",
         "",
-        f"- **Participant ID (email / ID number):** {participant_id}",
+        f"- **Participant email:** {participant_email}",
+        f"- **Participant ID number:** {participant_id}",
         f"- **Participant:** {participant_label}",
         f"- **Field of study:** {participant.get('fieldOfStudy') or '_(not collected)_'}",
         f"- **Prior intercultural experience:** {participant.get('priorInterculturalExperience') or '_(not collected)_'}",
@@ -385,15 +387,14 @@ def record_and_save(
 
     ended_reason is one of "resolved", "turn_limit", "user_ended".
     participant is the real person's self-reported {name, gender, age,
-    identifier} -- identifier being an email or an assigned ID number, their
-    choice -- distinct from the fictional player character name in the
-    scenario, collected once per session by the web frontend before they
-    pick a scenario. feedback is their own post-conversation
+    email, idNumber} -- distinct from the fictional player character name
+    in the scenario, collected once per session by the web frontend before
+    they pick a scenario. feedback is their own post-conversation
     {overall_rating, naturalness_rating, comments}, collected after the
     scene ends and before this is called. Both optional (the terminal
     version doesn't collect either). Records are grouped per participant
-    (by identifier) so the same person's sessions number together and can
-    be found as a set.
+    (by assigned ID number, falling back to the legacy identifier/email)
+    so the same person's sessions number together and can be found as a set.
     Never raises -- a broken analysis/save path should never take down the
     conversation it's reflecting on.
     """
